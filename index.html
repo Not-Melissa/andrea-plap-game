@@ -1,1 +1,404 @@
-<h1>Hello, world!</h1>
+<html>
+    <head>
+        <script type="text/javascript">
+            const CALIBRATE_DELAY = 1000;
+            const CALIBRATE_COMPLETE_DELAY = 2000;
+
+            const BASELINE_WINDOW = 50;
+            const FREQUENCY = 50;
+
+            const PEAK_THRESHOLD = 15;
+            const RESET_THRESHOLD = 4;
+            const RESET_DISTANCE = 4;
+
+            const CALIBRATION_TOLERANCE = 0.9;
+
+            let baseline = 0;
+            let baselineSamples = 0;
+            let baselineSum = 0;
+
+            let state = 0;
+
+            let calibrateBtn;
+            let calibrationText;
+            let beginBtn;
+            let timeLimitLabel;
+            let timeLimitInput;
+            let showCountsInput;
+            let plapCounts;
+            let hardCount;
+            let softCount;
+            let timeRemaining;
+            let statusUpdates;
+
+            let lastCalibrateTime = Date.now();
+            let lastCalibrateMax = -Infinity;
+
+            let beginTime = Date.now();
+
+            let lastPeakDistance = -1;
+
+            let hardPlaps = 0;
+            let softPlaps = 0;
+
+            function timeUp() {
+                if (state != 2) {
+                    return;
+                }
+
+                state = 3;
+                timeRemaining.innerText = "Times Up!";
+            }
+
+            function onCalibrate(e) {
+                e.target.disabled = true;
+                beginBtn.disabled = true;
+                calibrationText.innerText = "Waiting...";
+                setTimeout(() => {
+                    calibrationText.innerText = "Started - Plap HARD!";
+                    state = 1;
+                    lastCalibrateTime = Date.now();
+                }, CALIBRATE_DELAY);
+            }
+
+            function onBegin(e) {
+                if (!timeLimitInput.checkValidity()) {
+                    timeLimitLabel.style.color = "red";
+                    setTimeout(() => {
+                        timeLimitLabel.style.color = "";
+                    }, 2000);
+
+                    return;
+                }
+
+                e.target.disabled = true;
+                calibrateBtn.disabled = true;
+                timeLimitInput.disabled = true;
+                showCountsInput.disabled = true;
+
+                beginTime = Date.now();
+                state = 2;
+
+                const updateTimer = function () {
+                    const timeLimitMins = parseFloat(timeLimitInput.value);
+                    if (isNaN(timeLimitMins)) {
+                        return;
+                    }
+
+                    const end = beginTime + timeLimitMins * 60 * 1000;
+                    let remaining = end - Date.now();
+                    if (remaining < 0) {
+                        remaining = 0;
+                    }
+
+                    const remainingTotalSecs = Math.floor(remaining / 1000);
+                    const remainingMins = Math.floor(remainingTotalSecs / 60);
+                    const remainingSecs = Math.floor(remainingTotalSecs % 60);
+
+                    timeRemaining.innerText =
+                        remainingMins.toString().padStart(2, "0") +
+                        ":" +
+                        remainingSecs.toString().padStart(2, "0");
+
+                    if (remaining === 0 && state === 2) {
+                        timeUp();
+                        clearInterval(timerInterval);
+                    }
+                };
+
+                updateTimer();
+                const timerInterval = setInterval(updateTimer, 1000);
+            }
+
+            function peakThreshold() {
+                return baseline + PEAK_THRESHOLD;
+            }
+
+            function resetThreshold() {
+                return peakThreshold() - RESET_THRESHOLD;
+            }
+
+            function resetPeak(db) {
+                if (lastPeakDistance === -1) {
+                    return;
+                }
+
+                lastPeakDistance += 1;
+                if (
+                    lastPeakDistance > RESET_DISTANCE &&
+                    db < resetThreshold()
+                ) {
+                    lastPeakDistance = -1;
+                }
+            }
+
+            function detectPeak(db) {
+                if (lastPeakDistance !== -1) {
+                    resetPeak(db);
+                    return false;
+                }
+
+                if (db > peakThreshold()) {
+                    lastPeakDistance = 0;
+                    return true;
+                }
+
+                return false;
+            }
+
+            function calibrate(db) {
+                if (db > lastCalibrateMax) {
+                    lastCalibrateMax = db;
+                    lastCalibrateTime = Date.now();
+                } else if (
+                    Date.now() - lastCalibrateTime >
+                    CALIBRATE_COMPLETE_DELAY
+                ) {
+                    calibrationText.innerText = "Complete";
+                    state = 0;
+                    calibrateBtn.disabled = false;
+                    beginBtn.disabled = false;
+                }
+            }
+
+            function gameDb(db) {
+                if (detectPeak(db)) {
+                    const hardThreshold =
+                        lastCalibrateMax -
+                        (lastCalibrateMax - baseline) *
+                            (1 - CALIBRATION_TOLERANCE);
+
+                    const statusText = document.createElement("div");
+                    if (db >= hardThreshold) {
+                        hardPlaps += 1;
+                        statusText.innerText = "Good girl~!";
+                    } else {
+                        softPlaps += 1;
+                        statusText.innerText = "Worthless paypig!";
+                    }
+
+                    hardCount.innerText = hardPlaps.toString();
+                    softCount.innerText = softPlaps.toString();
+
+                    statusUpdates.prepend(statusText);
+                    setTimeout(function () {
+                        statusText.style.transition = "opacity 1s";
+                        statusText.style.opacity = 0;
+
+                        setTimeout(function () {
+                            statusUpdates.removeChild(statusText);
+                        }, 1000);
+                    }, 2000);
+                }
+            }
+
+            function handleMicDb(db) {
+                if (baseline === 0) {
+                    baseline = db;
+                }
+
+                if (baselineSamples < BASELINE_WINDOW) {
+                    baselineSamples += 1;
+                    baselineSum += db;
+                    baseline = baselineSum / baselineSamples;
+                } else {
+                    baseline =
+                        (baseline * (BASELINE_WINDOW - 1) + db) /
+                        BASELINE_WINDOW;
+                }
+
+                if (state === 1) {
+                    calibrate(db);
+                } else if (state === 2) {
+                    gameDb(db);
+                }
+            }
+
+            function beginMicrophoneRead() {
+                let audioContext;
+                let microphone;
+                let processor;
+                let intervalId;
+                let isRunning = false;
+
+                async function startMicrophone() {
+                    try {
+                        // Get microphone access
+                        const stream =
+                            await navigator.mediaDevices.getUserMedia({
+                                audio: true,
+                            });
+
+                        // Set up audio context
+                        audioContext = new (window.AudioContext ||
+                            window.webkitAudioContext)();
+                        const sampleRate = audioContext.sampleRate;
+                        microphone =
+                            audioContext.createMediaStreamSource(stream);
+
+                        const bufSize = Math.pow(
+                            2,
+                            Math.floor(Math.log2(sampleRate / FREQUENCY)),
+                        );
+
+                        // Create script processor to get raw data
+                        processor = audioContext.createScriptProcessor(
+                            Math.max(256, Math.min(16384, bufSize)),
+                            1,
+                            1,
+                        );
+
+                        // Connect everything
+                        microphone.connect(processor);
+                        processor.connect(audioContext.destination);
+
+                        // Buffer to store audio data between callbacks
+                        let audioBuffer = [];
+                        let lastProcessTime = 0;
+
+                        // Process audio data
+                        processor.onaudioprocess = function (event) {
+                            const inputData =
+                                event.inputBuffer.getChannelData(0);
+                            audioBuffer = audioBuffer.concat(
+                                Array.from(inputData),
+                            );
+                        };
+
+                        // Start processing at 50Hz (every 20ms)
+                        intervalId = setInterval(() => {
+                            if (audioBuffer.length > 0) {
+                                // Call our function with the raw audio data
+                                processAudioData(audioBuffer);
+
+                                // Clear the buffer
+                                audioBuffer = [];
+                            }
+                        }, 1000 / FREQUENCY);
+
+                        isRunning = true;
+                    } catch (error) {
+                        console.error("Error accessing microphone:", error);
+                    }
+                }
+
+                function stopMicrophone() {
+                    if (!isRunning) return;
+
+                    clearInterval(intervalId);
+
+                    if (processor) {
+                        processor.disconnect();
+                        processor.onaudioprocess = null;
+                    }
+
+                    if (microphone) {
+                        microphone.disconnect();
+                    }
+
+                    if (audioContext) {
+                        audioContext.close();
+                    }
+
+                    isRunning = false;
+                }
+
+                function processAudioData(audioData) {
+                    const sumSquares = audioData
+                        .map((x) => x * x)
+                        .reduce((a, x) => a + x);
+                    const rms = Math.sqrt(sumSquares / audioData.length);
+
+                    if (rms > 0) {
+                        const db = 20 * Math.log10(rms);
+                        handleMicDb(db);
+                    }
+                }
+
+                // Clean up when page is closed
+                window.addEventListener("beforeunload", stopMicrophone);
+
+                startMicrophone();
+            }
+
+            window.addEventListener("load", function () {
+                beginMicrophoneRead();
+
+                beginBtn = document.getElementById("begin-btn");
+                calibrateBtn = document.getElementById("calibrate-btn");
+                calibrationText = document.getElementById("calibration");
+                timeLimitLabel = document.getElementById("time-limit-label");
+                timeLimitInput = document.getElementById("time-limit");
+                showCountsInput = document.getElementById("show-counts");
+                plapCounts = document.getElementById("plap-counts");
+                hardCount = document.getElementById("hard-count");
+                softCount = document.getElementById("soft-count");
+                timeRemaining = document.getElementById("time-remaining");
+                statusUpdates = document.getElementById("status-updates");
+
+                calibrateBtn.addEventListener("click", onCalibrate);
+                beginBtn.addEventListener("click", onBegin);
+                showCountsInput.addEventListener("change", function (e) {
+                    if (e.target.checked) {
+                        plapCounts.style.display = "unset";
+                    } else {
+                        plapCounts.style.display = "none";
+                    }
+                });
+            });
+        </script>
+    </head>
+    <body>
+        <h1 style="margin-bottom: 0">Andrea's Plap Game</h1>
+        <span>By Melissa</span>
+
+        <h2>Settings</h2>
+
+        <div>
+            <label
+                for="time-limit"
+                id="time-limit-label"
+                style="transition: color 0.25s"
+            >
+                Time limit (mins):<br />
+                <input
+                    id="time-limit"
+                    type="number"
+                    min="1"
+                    value="1"
+                    required
+                    autocomplete="off"
+                />
+            </label>
+            <br />
+            <br />
+            <label for="show-counts">
+                <input
+                    id="show-counts"
+                    type="checkbox"
+                    checked
+                    autocomplete="off"
+                />
+                Always show plap counts
+            </label>
+
+            <br />
+            <br />
+            <button id="calibrate-btn">Calibrate</button>
+            <div>Calibration: <span id="calibration">Not started</span></div>
+        </div>
+
+        <h2>Game</h2>
+        <button id="begin-btn" disabled>Begin!</button>
+        <div>
+            <h3>Time remaining</h3>
+            <span id="time-remaining">00:00</span>
+        </div>
+        <div id="plap-counts">
+            <h3>Plap counts</h3>
+            <div>Hard: <span id="hard-count">0</span></div>
+            <div>Soft: <span id="soft-count">0</span></div>
+        </div>
+        <div id="status-updates" style="margin: 1em 0"></div>
+    </body>
+</html>
