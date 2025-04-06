@@ -27,13 +27,14 @@
             let showCountsInput;
 
             // GAME VARIABLES
-            /** @type {HTMLDialogElement} */
             let gameDialog;
             let plapCounts;
             let hardCount;
             let softCount;
             let timeRemaining;
             let statusUpdates;
+            let resetBtn;
+            let resetWoCalibrationBtn;
 
             let lastCalibrateTime = Date.now();
             let lastCalibrateMax = -Infinity;
@@ -53,6 +54,10 @@
 
                 state = 3;
                 timeRemaining.innerText = "Times Up! Reload the page to play again!";
+                // Use default display extracted from https://developer.mozilla.org/en-US/docs/Web/HTML/Element/button
+                resetBtn.style.display = 'flow-root'
+                resetWoCalibrationBtn.style.display = 'flow-root'
+                
                 plapCounts.style.display = "unset";
             }
 
@@ -85,6 +90,9 @@
                 calibrateBtn.disabled = true;
                 timeLimitInput.disabled = true;
                 showCountsInput.disabled = true;
+
+                resetBtn.style.display = 'none'
+                resetWoCalibrationBtn.style.display = 'none'
 
                 gameDialog.showModal();
                 beginTime = Date.now();
@@ -339,6 +347,17 @@
                 startMicrophone();
             }
 
+            function resetGameAndCalibration(){
+                beginBtn.setAttribute("disabled", "")
+                calibrateBtn.removeAttribute("disabled")
+                gameDialog.close();
+            }
+
+            function resetGameKeepCalibration(){
+                beginBtn.removeAttribute("disabled")
+                gameDialog.close()
+            }
+
             window.addEventListener("load", function () {
                 beginMicrophoneRead();
 
@@ -353,8 +372,12 @@
                 hardCount = document.getElementById("hard-count");
                 softCount = document.getElementById("soft-count");
                 timeRemaining = document.getElementById("time-remaining");
-                statusUpdates = document.getElementById("status-updates");                
+                statusUpdates = document.getElementById("status-updates");
+                resetBtn = document.getElementById("reset-button")
+                resetWoCalibrationBtn = document.getElementById("reset-button-wo-calib")
 
+                resetWoCalibrationBtn.addEventListener("click", resetGameAndCalibration)
+                resetBtn.addEventListener("click", resetGameKeepCalibration)          
                 calibrateBtn.addEventListener("click", onCalibrate);
                 beginBtn.addEventListener("click", onBegin);
                 showCountsInput.addEventListener("change", function (e) {
@@ -410,9 +433,11 @@
         <h2>Game</h2>
         <button id="begin-btn" disabled autocomplete="off">Begin!</button>
         <dialog id="game-dialog">
-            <div>
+            <div id ="time-remaining-div">
                 <h3>Time remaining</h3>
                 <span id="time-remaining">00:00</span>
+                <button style="display: none" id="reset-button">Reset the game (Keep Calibration)</button>
+                <button style="display: none" id="reset-button-wo-calib">Reset the game and calibration</button>
             </div>
             <div id="plap-counts">
                 <h3>Plap counts</h3>
