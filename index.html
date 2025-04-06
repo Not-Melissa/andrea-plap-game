@@ -103,7 +103,7 @@
                         return;
                     }
 
-                    const end = beginTime + timeLimitMins * 60 * 1000;
+                    const end = beginTime + timeLimitMins  * 1000;
                     let remaining = end - Date.now();
                     if (remaining < 0) {
                         remaining = 0;
@@ -347,12 +347,19 @@
             }
 
             function resetGameAndCalibration(){
+                state = 0
+                hardPlaps = 0;
+                softPlaps = 0;
+                calibrationText.innerText = "Not started"
                 beginBtn.setAttribute("disabled", "")
                 calibrateBtn.removeAttribute("disabled")
                 gameDialog.close();
             }
 
             function resetGameKeepCalibration(){
+                state = 1;
+                hardPlaps = 0;
+                softPlaps = 0;
                 beginBtn.removeAttribute("disabled")
                 gameDialog.close()
             }
