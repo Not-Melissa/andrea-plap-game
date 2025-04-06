@@ -347,13 +347,25 @@
             }
 
             function resetGameAndCalibration(){
-                beginBtn.setAttribute("disabled", "")
-                calibrateBtn.removeAttribute("disabled")
+                state = 0
+                hardPlaps = 0;
+                softPlaps = 0;
+                calibrationText.innerText = "Not started"
+                timeLimitInput.disabled = false;
+                showCountsInput.disabled = false;
+                beginBtn.disabled = true
+                calibrateBtn.disabled = false
                 gameDialog.close();
             }
 
             function resetGameKeepCalibration(){
-                beginBtn.removeAttribute("disabled")
+                state = 1;
+                hardPlaps = 0;
+                softPlaps = 0;
+                timeLimitInput.disabled = false;
+                showCountsInput.disabled = false;
+                beginBtn.disabled = false;
+                calibrateBtn.disabled = false;
                 gameDialog.close()
             }
 
