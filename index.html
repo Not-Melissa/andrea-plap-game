@@ -351,8 +351,10 @@
                 hardPlaps = 0;
                 softPlaps = 0;
                 calibrationText.innerText = "Not started"
-                beginBtn.setAttribute("disabled", "")
-                calibrateBtn.removeAttribute("disabled")
+                timeLimitInput.disabled = false;
+                showCountsInput.disabled = false;
+                beginBtn.disabled = true
+                calibrateBtn.disabled = false
                 gameDialog.close();
             }
 
@@ -360,7 +362,9 @@
                 state = 1;
                 hardPlaps = 0;
                 softPlaps = 0;
-                beginBtn.removeAttribute("disabled")
+                timeLimitInput.disabled = false;
+                showCountsInput.disabled = false;
+                beginBtn.disabled = false
                 gameDialog.close()
             }
 
