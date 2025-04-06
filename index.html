@@ -4,14 +4,14 @@
             const CALIBRATE_DELAY = 1000;
             const CALIBRATE_COMPLETE_DELAY = 2000;
 
-            const BASELINE_WINDOW = 50;
-            const FREQUENCY = 50;
+            const BASELINE_WINDOW = 100;
+            const FREQUENCY = 200;
 
             const PEAK_THRESHOLD = 15;
             const RESET_THRESHOLD = 4;
-            const RESET_DISTANCE = 4;
+            const RESET_DISTANCE = 16;
 
-            const CALIBRATION_TOLERANCE = 0.9;
+            const CALIBRATION_TOLERANCE = 0.85;
 
             let baseline = 0;
             let baselineSamples = 0;
@@ -37,6 +37,7 @@
             let beginTime = Date.now();
 
             let lastPeakDistance = -1;
+            let peakMax;
 
             let hardPlaps = 0;
             let softPlaps = 0;
@@ -48,12 +49,15 @@
 
                 state = 3;
                 timeRemaining.innerText = "Times Up!";
+                plapCounts.style.display = "unset";
             }
 
             function onCalibrate(e) {
                 e.target.disabled = true;
                 beginBtn.disabled = true;
                 calibrationText.innerText = "Waiting...";
+                lastCalibrateMax = -Infinity;
+
                 setTimeout(() => {
                     calibrationText.innerText = "Started - Plap HARD!";
                     state = 1;
@@ -120,7 +124,11 @@
 
             function resetPeak(db) {
                 if (lastPeakDistance === -1) {
-                    return;
+                    return false;
+                }
+
+                if (db > peakMax) {
+                    peakMax = db;
                 }
 
                 lastPeakDistance += 1;
@@ -129,18 +137,18 @@
                     db < resetThreshold()
                 ) {
                     lastPeakDistance = -1;
+                    return true;
                 }
             }
 
             function detectPeak(db) {
                 if (lastPeakDistance !== -1) {
-                    resetPeak(db);
-                    return false;
+                    return resetPeak(db);
                 }
 
                 if (db > peakThreshold()) {
+                    peakMax = db;
                     lastPeakDistance = 0;
-                    return true;
                 }
 
                 return false;
@@ -169,7 +177,7 @@
                             (1 - CALIBRATION_TOLERANCE);
 
                     const statusText = document.createElement("div");
-                    if (db >= hardThreshold) {
+                    if (peakMax >= hardThreshold) {
                         hardPlaps += 1;
                         statusText.innerText = "Good girl~!";
                     } else {
@@ -197,14 +205,16 @@
                     baseline = db;
                 }
 
-                if (baselineSamples < BASELINE_WINDOW) {
-                    baselineSamples += 1;
-                    baselineSum += db;
-                    baseline = baselineSum / baselineSamples;
-                } else {
-                    baseline =
-                        (baseline * (BASELINE_WINDOW - 1) + db) /
-                        BASELINE_WINDOW;
+                if (db < peakThreshold()) {
+                    if (baselineSamples < BASELINE_WINDOW) {
+                        baselineSamples += 1;
+                        baselineSum += db;
+                        baseline = baselineSum / baselineSamples;
+                    } else {
+                        baseline =
+                            (baseline * (BASELINE_WINDOW - 1) + db) /
+                            BASELINE_WINDOW;
+                    }
                 }
 
                 if (state === 1) {
@@ -304,13 +314,14 @@
                 }
 
                 function processAudioData(audioData) {
-                    const sumSquares = audioData
-                        .map((x) => x * x)
-                        .reduce((a, x) => a + x);
-                    const rms = Math.sqrt(sumSquares / audioData.length);
+                    //const sumSquares = audioData
+                    //    .map((x) => x * x)
+                    //    .reduce((a, x) => a + x);
+                    //const rms = Math.sqrt(sumSquares / audioData.length);
+                    const peak = Math.max(...audioData.map((x) => Math.abs(x)));
 
-                    if (rms > 0) {
-                        const db = 20 * Math.log10(rms);
+                    if (peak > 0.00001) {
+                        const db = 20 * Math.log10(peak);
                         handleMicDb(db);
                     }
                 }
