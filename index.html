@@ -1,4 +1,4 @@
-<html>
+<html style="background-color: lightblue">
     <head>
         <script type="text/javascript">
             const CALIBRATE_DELAY = 1000;
@@ -54,9 +54,9 @@
                 state = 3;
                 timeRemaining.innerText = "Times Up!";
                 // Use default display extracted from https://developer.mozilla.org/en-US/docs/Web/HTML/Element/button
-                resetBtn.style.display = 'flow-root'
-                resetWoCalibrationBtn.style.display = 'flow-root'
-                
+                resetBtn.style.display = "flow-root";
+                resetWoCalibrationBtn.style.display = "flow-root";
+
                 plapCounts.style.display = "unset";
             }
 
@@ -83,15 +83,13 @@
                     return;
                 }
 
-                
-
                 e.target.disabled = true;
                 calibrateBtn.disabled = true;
                 timeLimitInput.disabled = true;
                 showCountsInput.disabled = true;
 
-                resetBtn.style.display = 'none'
-                resetWoCalibrationBtn.style.display = 'none'
+                resetBtn.style.display = "none";
+                resetWoCalibrationBtn.style.display = "none";
 
                 gameDialog.showModal();
                 beginTime = Date.now();
@@ -346,19 +344,19 @@
                 startMicrophone();
             }
 
-            function resetGameAndCalibration(){
-                state = 0
+            function resetGameAndCalibration() {
+                state = 0;
                 hardPlaps = 0;
                 softPlaps = 0;
-                calibrationText.innerText = "Not started"
+                calibrationText.innerText = "Not started";
                 timeLimitInput.disabled = false;
                 showCountsInput.disabled = false;
-                beginBtn.disabled = true
-                calibrateBtn.disabled = false
+                beginBtn.disabled = true;
+                calibrateBtn.disabled = false;
                 gameDialog.close();
             }
 
-            function resetGameKeepCalibration(){
+            function resetGameKeepCalibration() {
                 state = 1;
                 hardPlaps = 0;
                 softPlaps = 0;
@@ -366,7 +364,7 @@
                 showCountsInput.disabled = false;
                 beginBtn.disabled = false;
                 calibrateBtn.disabled = false;
-                gameDialog.close()
+                gameDialog.close();
             }
 
             window.addEventListener("load", function () {
@@ -384,11 +382,16 @@
                 softCount = document.getElementById("soft-count");
                 timeRemaining = document.getElementById("time-remaining");
                 statusUpdates = document.getElementById("status-updates");
-                resetBtn = document.getElementById("reset-button")
-                resetWoCalibrationBtn = document.getElementById("reset-button-wo-calib")
+                resetBtn = document.getElementById("reset-button");
+                resetWoCalibrationBtn = document.getElementById(
+                    "reset-button-wo-calib",
+                );
 
-                resetWoCalibrationBtn.addEventListener("click", resetGameAndCalibration)
-                resetBtn.addEventListener("click", resetGameKeepCalibration)          
+                resetWoCalibrationBtn.addEventListener(
+                    "click",
+                    resetGameAndCalibration,
+                );
+                resetBtn.addEventListener("click", resetGameKeepCalibration);
                 calibrateBtn.addEventListener("click", onCalibrate);
                 beginBtn.addEventListener("click", onBegin);
                 showCountsInput.addEventListener("change", function (e) {
@@ -444,11 +447,15 @@
         <h2>Game</h2>
         <button id="begin-btn" disabled autocomplete="off">Begin!</button>
         <dialog id="game-dialog">
-            <div id ="time-remaining-div">
+            <div id="time-remaining-div">
                 <h3>Time remaining</h3>
                 <span id="time-remaining">00:00</span>
-                <button style="display: none" id="reset-button">Reset the game (Keep Calibration)</button>
-                <button style="display: none" id="reset-button-wo-calib">Reset the game and calibration</button>
+                <button style="display: none" id="reset-button">
+                    Reset the game (Keep Calibration)
+                </button>
+                <button style="display: none" id="reset-button-wo-calib">
+                    Reset the game and calibration
+                </button>
             </div>
             <div id="plap-counts">
                 <h3>Plap counts</h3>
