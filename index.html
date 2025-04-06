@@ -7,6 +7,7 @@
             const BASELINE_WINDOW = 100;
             const FREQUENCY = 200;
 
+            const PEAK_THRESHOLD = 15;
             const RESET_THRESHOLD = 4;
             const RESET_DISTANCE = 16;
 
@@ -24,8 +25,6 @@
             let timeLimitLabel;
             let timeLimitInput;
             let showCountsInput;
-            let peakThresholdInput;
-            let plapDetected;
 
             let gameDialog;
             let plapCounts;
@@ -55,9 +54,9 @@
                 state = 3;
                 timeRemaining.innerText = "Times Up!";
                 // Use default display extracted from https://developer.mozilla.org/en-US/docs/Web/HTML/Element/button
-                resetBtn.style.display = "flow-root";
-                resetWoCalibrationBtn.style.display = "flow-root";
-
+                resetBtn.style.display = 'flow-root'
+                resetWoCalibrationBtn.style.display = 'flow-root'
+                
                 plapCounts.style.display = "unset";
             }
 
@@ -84,14 +83,15 @@
                     return;
                 }
 
+                
+
                 e.target.disabled = true;
                 calibrateBtn.disabled = true;
                 timeLimitInput.disabled = true;
                 showCountsInput.disabled = true;
-                peakThresholdInput.disabled = true;
 
-                resetBtn.style.display = "none";
-                resetWoCalibrationBtn.style.display = "none";
+                resetBtn.style.display = 'none'
+                resetWoCalibrationBtn.style.display = 'none'
 
                 gameDialog.showModal();
                 beginTime = Date.now();
@@ -129,7 +129,7 @@
             }
 
             function peakThreshold() {
-                return -peakThresholdInput.value;
+                return baseline + PEAK_THRESHOLD;
             }
 
             function resetThreshold() {
@@ -214,18 +214,6 @@
                 }
             }
 
-            function idleDb(db) {
-                if (detectPeak(db)) {
-                    plapDetected.style.transition = "";
-                    plapDetected.style.opacity = "1";
-
-                    setTimeout(function () {
-                        plapDetected.style.transition = "opacity 0.1s";
-                        plapDetected.style.opacity = "0";
-                    }, 200);
-                }
-            }
-
             function handleMicDb(db) {
                 if (baseline === 0) {
                     baseline = db;
@@ -243,16 +231,10 @@
                     }
                 }
 
-                switch (state) {
-                    case 0:
-                        idleDb(db);
-                        break;
-                    case 1:
-                        calibrate(db);
-                        break;
-                    case 2:
-                        gameDb(db);
-                        break;
+                if (state === 1) {
+                    calibrate(db);
+                } else if (state === 2) {
+                    gameDb(db);
                 }
             }
 
@@ -364,29 +346,27 @@
                 startMicrophone();
             }
 
-            function resetGameAndCalibration() {
-                state = 0;
+            function resetGameAndCalibration(){
+                state = 0
                 hardPlaps = 0;
                 softPlaps = 0;
-                calibrationText.innerText = "Not started";
+                calibrationText.innerText = "Not started"
                 timeLimitInput.disabled = false;
                 showCountsInput.disabled = false;
-                peakThresholdInput.disabled = false;
-                beginBtn.disabled = true;
-                calibrateBtn.disabled = false;
+                beginBtn.disabled = true
+                calibrateBtn.disabled = false
                 gameDialog.close();
             }
 
-            function resetGameKeepCalibration() {
+            function resetGameKeepCalibration(){
                 state = 1;
                 hardPlaps = 0;
                 softPlaps = 0;
                 timeLimitInput.disabled = false;
                 showCountsInput.disabled = false;
-                peakThresholdInput.disabled = false;
                 beginBtn.disabled = false;
                 calibrateBtn.disabled = false;
-                gameDialog.close();
+                gameDialog.close()
             }
 
             window.addEventListener("load", function () {
@@ -397,8 +377,6 @@
                 calibrationText = document.getElementById("calibration");
                 timeLimitLabel = document.getElementById("time-limit-label");
                 timeLimitInput = document.getElementById("time-limit");
-                peakThresholdInput = document.getElementById("peak-threshold");
-                plapDetected = document.getElementById("plap-detected");
                 showCountsInput = document.getElementById("show-counts");
                 gameDialog = document.getElementById("game-dialog");
                 plapCounts = document.getElementById("plap-counts");
@@ -406,43 +384,19 @@
                 softCount = document.getElementById("soft-count");
                 timeRemaining = document.getElementById("time-remaining");
                 statusUpdates = document.getElementById("status-updates");
-                resetBtn = document.getElementById("reset-button");
-                resetWoCalibrationBtn = document.getElementById(
-                    "reset-button-wo-calib",
-                );
+                resetBtn = document.getElementById("reset-button")
+                resetWoCalibrationBtn = document.getElementById("reset-button-wo-calib")
 
-                resetWoCalibrationBtn.addEventListener(
-                    "click",
-                    resetGameAndCalibration,
-                );
-
-                resetBtn.addEventListener("click", resetGameKeepCalibration);
+                resetWoCalibrationBtn.addEventListener("click", resetGameAndCalibration)
+                resetBtn.addEventListener("click", resetGameKeepCalibration)          
                 calibrateBtn.addEventListener("click", onCalibrate);
                 beginBtn.addEventListener("click", onBegin);
-
                 showCountsInput.addEventListener("change", function (e) {
                     if (e.target.checked) {
                         plapCounts.style.display = "unset";
                     } else {
                         plapCounts.style.display = "none";
                     }
-                });
-
-                const savedPeakThreshold =
-                    localStorage.getItem("PEAK_THRESHOLD");
-                const savedPeakThresholdNum = parseFloat(savedPeakThreshold);
-                if (
-                    savedPeakThreshold != null &&
-                    !isNaN(savedPeakThresholdNum)
-                ) {
-                    peakThresholdInput.value = savedPeakThresholdNum;
-                }
-
-                peakThresholdInput.addEventListener("change", function (e) {
-                    localStorage.setItem(
-                        "PEAK_THRESHOLD",
-                        e.target.value.toString(),
-                    );
                 });
             });
         </script>
@@ -480,24 +434,6 @@
                 />
                 Always show plap counts
             </label>
-            <br />
-            <br />
-            <label for="peak-threshold">
-                Sensitivity
-                <br />
-                <input
-                    id="peak-threshold"
-                    type="range"
-                    min="0"
-                    max="100"
-                    value="25"
-                    autocomplete="off"
-                />
-            </label>
-            <div>
-                Detection:
-                <span id="plap-detected" style="opacity: 0">PLAP!</span>
-            </div>
 
             <br />
             <br />
@@ -508,15 +444,11 @@
         <h2>Game</h2>
         <button id="begin-btn" disabled autocomplete="off">Begin!</button>
         <dialog id="game-dialog">
-            <div id="time-remaining-div">
+            <div id ="time-remaining-div">
                 <h3>Time remaining</h3>
                 <span id="time-remaining">00:00</span>
-                <button style="display: none" id="reset-button">
-                    Reset the game (Keep Calibration)
-                </button>
-                <button style="display: none" id="reset-button-wo-calib">
-                    Reset the game and calibration
-                </button>
+                <button style="display: none" id="reset-button">Reset the game (Keep Calibration)</button>
+                <button style="display: none" id="reset-button-wo-calib">Reset the game and calibration</button>
             </div>
             <div id="plap-counts">
                 <h3>Plap counts</h3>
